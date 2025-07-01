@@ -36,6 +36,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.net.ssl.HttpsURLConnection
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -166,10 +167,10 @@ class LoginActivity : ComponentActivity() {
     fun performLogin(username: String, password: String, onResult: (String) -> Unit) {
         Thread {
             try {
-                val url = URL("http://10.3.11.192/gps/Backend/Login.php")
+                val url = URL("https://ashani.fwh.is/Login.php")
                 val postData = "username=$username&password=$password"
 
-                with(url.openConnection() as HttpURLConnection) {
+                with(url.openConnection() as HttpsURLConnection) {
                     requestMethod = "POST"
                     doOutput = true
                     setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
@@ -183,7 +184,10 @@ class LoginActivity : ComponentActivity() {
                 }
             } catch (e: Exception) {
                 Handler(Looper.getMainLooper()).post {
-                    onResult("Error: ${e.message}")
+                    //onResult("Error: ${e.message}")
+                    onResult("Error: ${e.javaClass.name} - ${e.localizedMessage}")
+                    e.printStackTrace()
+
                 }
             }
         }.start()

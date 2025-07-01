@@ -68,7 +68,7 @@ class LocationService : Service() {
                 Log.d("LocationService", "Lat: $lat, Lon: $lon, repId: $repId")
 
                 // Send periodic location update
-                val url = "http://10.3.11.192/gps/Backend/location_handler.php"
+                val url = "https://ashani.fwh.is/location_handler.php"
                 val requestQueue = Volley.newRequestQueue(applicationContext)
 
                 val stringRequest = object : StringRequest(Method.POST, url,
