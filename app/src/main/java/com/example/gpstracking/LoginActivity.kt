@@ -173,28 +173,32 @@ class LoginActivity : ComponentActivity() {
                 with(url.openConnection() as HttpsURLConnection) {
                     requestMethod = "POST"
                     doOutput = true
+
+                    //Set necessary headers
                     setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Android) MyApp/1.0")
 
                     outputStream.use { it.write(postData.toByteArray()) }
 
-                    val response = try{
+                    val responseCode = responseCode
+                    val responseText = if (responseCode == HttpURLConnection.HTTP_OK) {
                         inputStream.bufferedReader().readText()
-                    }catch (e: Exception){
-                        errorStream?.bufferedReader()?.readText() ?: "Unknown error"
+                    } else {
+                        errorStream?.bufferedReader()?.readText() ?: "HTTP error code: $responseCode"
                     }
+
                     Handler(Looper.getMainLooper()).post {
-                        onResult(response.trim())
+                        onResult("[$responseCode] ${responseText.trim()}")
                     }
                 }
             } catch (e: Exception) {
                 Handler(Looper.getMainLooper()).post {
-                    //onResult("Error: ${e.message}")
                     onResult("Exception: ${e.javaClass.simpleName} - ${e.localizedMessage}")
                     e.printStackTrace()
-
                 }
             }
         }.start()
     }
+
 
 }
