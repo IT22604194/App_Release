@@ -177,7 +177,11 @@ class LoginActivity : ComponentActivity() {
 
                     outputStream.use { it.write(postData.toByteArray()) }
 
-                    val response = inputStream.bufferedReader().readText()
+                    val response = try{
+                        inputStream.bufferedReader().readText()
+                    }catch (e: Exception){
+                        errorStream?.bufferedReader()?.readText() ?: "Unknown error"
+                    }
                     Handler(Looper.getMainLooper()).post {
                         onResult(response.trim())
                     }
@@ -185,7 +189,7 @@ class LoginActivity : ComponentActivity() {
             } catch (e: Exception) {
                 Handler(Looper.getMainLooper()).post {
                     //onResult("Error: ${e.message}")
-                    onResult("Error: ${e.javaClass.name} - ${e.localizedMessage}")
+                    onResult("Exception: ${e.javaClass.simpleName} - ${e.localizedMessage}")
                     e.printStackTrace()
 
                 }
