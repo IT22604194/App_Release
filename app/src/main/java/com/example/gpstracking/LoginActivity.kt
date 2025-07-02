@@ -196,4 +196,5 @@ class LoginActivity : ComponentActivity() {
             }
         }.start()
     }
+
 }
