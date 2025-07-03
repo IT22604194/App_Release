@@ -2,7 +2,7 @@
 <network-security-config>
     <!-- Allow HTTPS to backend domain -->
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">ashani.fwh.is</domain>
+        <domain includeSubdomains="true">php-login-app-production.up.railway.app</domain>
     </domain-config>
 </network-security-config>
 
