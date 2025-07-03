@@ -1,25 +1,5 @@
 package com.example.gpstracking
 
-// Core Compose
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
-
-// Material Icons
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-
-// Optional if using Scaffold or TopAppBar
-import androidx.compose.material.Scaffold
-import androidx.compose.material.TopAppBar
-
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -27,16 +7,27 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-
-import com.example.gpstracking.ui.theme.GPSTrackingTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.example.gpstracking.ui.theme.GPSTrackingTheme
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.net.ssl.HttpsURLConnection
+import java.text.SimpleDateFormat
+import java.util.*
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,6 +96,7 @@ class LoginActivity : ComponentActivity() {
                                 performLogin(username, password) { result ->
                                     loading = false
                                     if (result == "Login successful") {
+                                        // Save session securely
                                         val masterKey = MasterKey.Builder(applicationContext)
                                             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                                             .build()
@@ -116,14 +108,13 @@ class LoginActivity : ComponentActivity() {
                                             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                                             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                                         )
-                                        val loginTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
-                                            Date()
-                                        )
+                                        val loginTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
                                         sharedPref.edit()
                                             .putString("username", username)
                                             .putString("login_time", loginTime)
                                             .apply()
+
                                         startActivity(Intent(this@LoginActivity, MainActivity::class.java))
                                         finish()
                                     } else {
@@ -161,20 +152,17 @@ class LoginActivity : ComponentActivity() {
                 }
             }
         }
-
     }
 
-    fun performLogin(username: String, password: String, onResult: (String) -> Unit) {
+    private fun performLogin(username: String, password: String, onResult: (String) -> Unit) {
         Thread {
             try {
                 val url = URL("https://php-login-app-production.up.railway.app/Login.php")
-                val postData = "username=$username&password=$password"
+                val postData = "username=${username}&password=${password}"
 
                 with(url.openConnection() as HttpsURLConnection) {
                     requestMethod = "POST"
                     doOutput = true
-
-                    //Set necessary headers
                     setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
                     setRequestProperty("User-Agent", "Mozilla/5.0 (Android) MyApp/1.0")
 
@@ -187,8 +175,15 @@ class LoginActivity : ComponentActivity() {
                         errorStream?.bufferedReader()?.readText() ?: "HTTP error code: $responseCode"
                     }
 
+                    val message = try {
+                        val json = JSONObject(responseText)
+                        json.optString("message", "Unknown response")
+                    } catch (e: Exception) {
+                        "Invalid response from server"
+                    }
+
                     Handler(Looper.getMainLooper()).post {
-                        onResult("[$responseCode] ${responseText.trim()}")
+                        onResult(message)
                     }
                 }
             } catch (e: Exception) {
@@ -199,6 +194,4 @@ class LoginActivity : ComponentActivity() {
             }
         }.start()
     }
-
-
 }
