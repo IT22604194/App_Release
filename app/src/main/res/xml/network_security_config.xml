@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!-- Allow HTTPS to backend domain -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">php-login-app-production.up.railway.app</domain>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">mudithappl-001-site1.dtempurl.com</domain>
     </domain-config>
 </network-security-config>
 

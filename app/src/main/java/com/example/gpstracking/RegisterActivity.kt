@@ -123,11 +123,11 @@ class RegisterActivity : ComponentActivity() {
     private fun performRegister(username: String, password: String, onResult: (String) -> Unit) {
         Thread {
             try {
-                val url = URL("https://php-login-app-production.up.railway.app/Register.php")
+                val url = URL("http://mudithappl-001-site1.dtempurl.com/php-login-app/public/Register.php")
                 val postData = "username=${URLEncoder.encode(username, "UTF-8")}&password=${URLEncoder.encode(password, "UTF-8")}"
 
 
-                with(url.openConnection() as HttpsURLConnection)
+                with(url.openConnection() as HttpURLConnection)
                 {
                     requestMethod = "POST"
                     doOutput = true

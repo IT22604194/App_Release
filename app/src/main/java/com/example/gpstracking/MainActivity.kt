@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
                                                 sharedPref.edit().putString("clock_in_time", clockInTime).apply()
                                                 clockInTimePref.value = clockInTime
 
-                                                val url = "https://php-login-app-production.up.railway.app/location_handler.php"
+                                                val url = "http://mudithappl-001-site1.dtempurl.com/php-login-app/public/location_handler.php"
                                                 val requestQueue = Volley.newRequestQueue(applicationContext)
 
                                                 val stringRequest = object : StringRequest(Method.POST, url,
@@ -259,7 +259,7 @@ class MainActivity : ComponentActivity() {
                 val lon = location.longitude.toString()
                 val clockOutTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-                val url = "https://php-login-app-production.up.railway.app/location_handler.php"
+                val url = "http://mudithappl-001-site1.dtempurl.com/php-login-app/public/location_handler.php"
                 val requestQueue = Volley.newRequestQueue(applicationContext)
 
                 val stringRequest = object : StringRequest(Method.POST, url,

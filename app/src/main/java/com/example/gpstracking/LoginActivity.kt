@@ -157,10 +157,10 @@ class LoginActivity : ComponentActivity() {
     private fun performLogin(username: String, password: String, onResult: (String) -> Unit) {
         Thread {
             try {
-                val url = URL("https://php-login-app-production.up.railway.app/Login.php")
+                val url = URL("http://mudithappl-001-site1.dtempurl.com/php-login-app/public/Login.php")
                 val postData = "username=${username}&password=${password}"
 
-                with(url.openConnection() as HttpsURLConnection) {
+                with(url.openConnection() as HttpURLConnection) {
                     requestMethod = "POST"
                     doOutput = true
                     setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
