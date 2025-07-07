@@ -21,11 +21,13 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.android.volley.DefaultRetryPolicy
 import com.android.volley.Response
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.example.gpstracking.ui.theme.GPSTrackingTheme
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -68,6 +70,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             GPSTrackingTheme {
                 var isTracking by remember { mutableStateOf(false) }
+                var clockInInProgress by remember { mutableStateOf(false) }
                 val clockInTimePref = remember { mutableStateOf(sharedPref.getString("clock_in_time", null)) }
 
                 Scaffold(
@@ -91,69 +94,83 @@ class MainActivity : ComponentActivity() {
                             Text("Rep ID: $repId", style = MaterialTheme.typography.body1, color = Color.DarkGray)
 
                             Spacer(modifier = Modifier.height(24.dp))
-
+                            //Clocking button
                             Button(
                                 onClick = {
+
+                                    if (clockInInProgress) return@Button  // Prevent double taps
+                                    clockInInProgress = true
+
                                     if (hasLocationPermissions()) {
                                         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this@MainActivity)
 
                                         if (ActivityCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                                             ActivityCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                                             Toast.makeText(this@MainActivity, "Location permission not granted", Toast.LENGTH_SHORT).show()
+                                            clockInInProgress = false
                                             return@Button
                                         }
 
-                                        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                                            if (location != null) {
-                                                val lat = location.latitude.toString()
-                                                val lon = location.longitude.toString()
-                                                val clockInTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)// get current location
+                                            .addOnSuccessListener { location ->
+                                                if (location != null) {
+                                                    val lat = location.latitude.toString()
+                                                    val lon = location.longitude.toString()
+                                                    val clockInTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-                                                // Save it only after successful location
-                                                sharedPref.edit().putString("clock_in_time", clockInTime).apply()
-                                                clockInTimePref.value = clockInTime
+                                                    sharedPref.edit().putString("clock_in_time", clockInTime).apply()// clockin
+                                                    clockInTimePref.value = clockInTime
 
-                                                val url = "http://mudithappl-001-site1.dtempurl.com/php-login-app/public/location_handler.php"
-                                                val requestQueue = Volley.newRequestQueue(applicationContext)
+                                                    val url = "http://mudithappl-001-site1.dtempurl.com/php-login-app/public/location_handler.php"
+                                                    val requestQueue = Volley.newRequestQueue(applicationContext)
 
-                                                val stringRequest = object : StringRequest(Method.POST, url,
-                                                    Response.Listener { response ->
-                                                        Log.d("ClockInSuccess", "Server response: $response")
-                                                        Toast.makeText(this@MainActivity, "Clocked in successfully", Toast.LENGTH_SHORT).show()
-                                                    },
-                                                    Response.ErrorListener { error ->
-                                                        Log.e("ClockInError", "Error: ${error.message}")
-                                                        Toast.makeText(this@MainActivity, "Clock in failed", Toast.LENGTH_SHORT).show()
+                                                    val stringRequest = object : StringRequest(Method.POST, url,
+                                                        Response.Listener { response ->
+                                                            Log.d("ClockInSuccess", "Server response: $response")
+                                                            Toast.makeText(this@MainActivity, "Clocked in successfully", Toast.LENGTH_SHORT).show()
+                                                            startTracking(repId)
+                                                            isTracking = true
+                                                            clockInInProgress = false
+                                                        },
+                                                        Response.ErrorListener { error ->
+                                                            Log.e("ClockInError", "Error: ${error.message}")
+                                                            Toast.makeText(this@MainActivity, "Clock in failed", Toast.LENGTH_SHORT).show()
+                                                            clockInInProgress = false
+                                                        }
+                                                    ) {
+                                                        override fun getParams(): MutableMap<String, String> {
+                                                            return hashMapOf(
+                                                                "rep_id" to repId,
+                                                                "latitude" to lat,
+                                                                "longitude" to lon,
+                                                                "clock_in_time" to clockInTime,
+                                                                "action" to "clock_in"
+                                                            )
+                                                        }
                                                     }
-                                                ) {
-                                                    override fun getParams(): MutableMap<String, String> {
-                                                        return hashMapOf(
-                                                            "rep_id" to repId,
-                                                            "latitude" to lat,
-                                                            "longitude" to lon,
-                                                            "clock_in_time" to clockInTime,
-                                                            "action" to "clock_in"
-                                                        )
-                                                    }
+                                                    //Disable retries
+                                                    stringRequest.retryPolicy = DefaultRetryPolicy(
+                                                        10000, 0, 1f
+                                                    )
+
+                                                    requestQueue.add(stringRequest)
+
+                                                    //startTracking(repId)// starts LocationService with ACTION_START
+                                                    //isTracking = true
+                                                } else {
+                                                    Toast.makeText(this@MainActivity, "Location not available", Toast.LENGTH_SHORT).show()
+                                                    clockInInProgress = false
                                                 }
-
-                                                requestQueue.add(stringRequest)
-
-                                                startTracking(repId)
-                                                isTracking = true
-                                            } else {
-                                                Toast.makeText(this@MainActivity, "Location not available", Toast.LENGTH_SHORT).show()
                                             }
-                                        }
                                     } else {
                                         ActivityCompat.requestPermissions(
                                             this@MainActivity,
                                             LOCATION_PERMISSIONS,
                                             PERMISSION_REQUEST_CODE
                                         )
+                                        clockInInProgress = false
                                     }
-                                }
-                                ,
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp),
@@ -163,7 +180,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
-
+                            //Clock Out Button
                             Button(
                                 onClick = {
                                     stopTracking(repId)
@@ -195,7 +212,7 @@ class MainActivity : ComponentActivity() {
                             )
 
                             Spacer(modifier = Modifier.height(32.dp))
-
+                            //Logout Button
                             Button(
                                 onClick = {
                                     sharedPref.edit().clear().apply()
@@ -253,41 +270,42 @@ class MainActivity : ComponentActivity() {
 
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            if (location != null) {
-                val lat = location.latitude.toString()
-                val lon = location.longitude.toString()
-                val clockOutTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    val lat = location.latitude.toString()
+                    val lon = location.longitude.toString()
+                    val clockOutTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-                val url = "http://mudithappl-001-site1.dtempurl.com/php-login-app/public/location_handler.php"
-                val requestQueue = Volley.newRequestQueue(applicationContext)
+                    val url = "http://mudithappl-001-site1.dtempurl.com/php-login-app/public/location_handler.php"
+                    val requestQueue = Volley.newRequestQueue(applicationContext)
 
-                val stringRequest = object : StringRequest(Method.POST, url,
-                    Response.Listener { response ->
-                        Log.d("ClockOutSuccess", "Server response: $response")
-                        Toast.makeText(this, "Clocked out successfully", Toast.LENGTH_SHORT).show()
-                    },
-                    Response.ErrorListener { error ->
-                        Log.e("ClockOutError", "Error: ${error.message}")
-                        Toast.makeText(this, "Clock out failed", Toast.LENGTH_SHORT).show()
+                    val stringRequest = object : StringRequest(Method.POST, url,
+                        Response.Listener { response ->
+                            Log.d("ClockOutSuccess", "Server response: $response")
+                            Toast.makeText(this, "Clocked out successfully", Toast.LENGTH_SHORT).show()
+                        },
+                        Response.ErrorListener { error ->
+                            Log.e("ClockOutError", "Error: ${error.message}")
+                            Toast.makeText(this, "Clock out failed", Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        override fun getParams(): MutableMap<String, String> {
+                            return hashMapOf(
+                                "rep_id" to repId,
+                                "latitude" to lat,
+                                "longitude" to lon,
+                                "clock_out_time" to clockOutTime,
+                                "action" to "clock_out"
+                            )
+                        }
                     }
-                ) {
-                    override fun getParams(): MutableMap<String, String> {
-                        return hashMapOf(
-                            "rep_id" to repId,
-                            "latitude" to lat,
-                            "longitude" to lon,
-                            "clock_out_time" to clockOutTime,
-                            "action" to "clock_out"
-                        )
-                    }
+
+                    requestQueue.add(stringRequest)
+                } else {
+                    Toast.makeText(this, "Location not available", Toast.LENGTH_SHORT).show()
                 }
-
-                requestQueue.add(stringRequest)
-            } else {
-                Toast.makeText(this, "Location not available", Toast.LENGTH_SHORT).show()
             }
-        }
     }
 
     override fun onRequestPermissionsResult(
