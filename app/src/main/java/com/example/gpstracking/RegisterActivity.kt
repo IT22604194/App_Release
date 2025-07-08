@@ -23,6 +23,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import javax.net.ssl.HttpsURLConnection
+import android.provider.Settings
+
 
 class RegisterActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -123,8 +125,12 @@ class RegisterActivity : ComponentActivity() {
     private fun performRegister(username: String, password: String, onResult: (String) -> Unit) {
         Thread {
             try {
+                val deviceId = getAndroidDeviceId()//Get device ID
                 val url = URL("http://mudithappl-001-site1.dtempurl.com/php-login-app/public/Register.php")
-                val postData = "username=${URLEncoder.encode(username, "UTF-8")}&password=${URLEncoder.encode(password, "UTF-8")}"
+
+                val postData = "username=${URLEncoder.encode(username, "UTF-8")}" +
+                               "&password=${URLEncoder.encode(password, "UTF-8")}" +
+                               "&device_id=${URLEncoder.encode(deviceId, "UTF-8")}"
 
 
                 with(url.openConnection() as HttpURLConnection)
@@ -147,4 +153,8 @@ class RegisterActivity : ComponentActivity() {
             }
         }.start()
     }
+    private fun getAndroidDeviceId(): String {
+        return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+    }
+
 }

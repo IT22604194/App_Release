@@ -1,6 +1,8 @@
 package com.example.gpstracking
 
+import android.content.ContentResolver
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -19,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.example.gpstracking.ui.theme.GPSTrackingTheme
@@ -28,6 +31,8 @@ import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.jar.Manifest
+import android.provider.Settings
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -158,7 +163,8 @@ class LoginActivity : ComponentActivity() {
         Thread {
             try {
                 val url = URL("http://mudithappl-001-site1.dtempurl.com/php-login-app/public/Login.php")
-                val postData = "username=${username}&password=${password}"
+                val deviceId = fetchAndroidDeviceId()
+                val postData = "username=${username}&password=${password}&device_id=$deviceId"
 
                 with(url.openConnection() as HttpURLConnection) {
                     requestMethod = "POST"
@@ -174,6 +180,7 @@ class LoginActivity : ComponentActivity() {
                     } else {
                         errorStream?.bufferedReader()?.readText() ?: "HTTP error code: $responseCode"
                     }
+
 
                     val message = try {
                         val json = JSONObject(responseText)
@@ -193,5 +200,8 @@ class LoginActivity : ComponentActivity() {
                 }
             }
         }.start()
+    }
+    private fun fetchAndroidDeviceId(): String{
+        return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
     }
 }
