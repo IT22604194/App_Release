@@ -4,6 +4,8 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -56,6 +58,7 @@ class LocationService : Service() {
 
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        //val batteryLevel = getBatteryLevel().toString()
 
         locationClient
             .getLocationUpdates(5 * 60 * 1000L) // every 5 mins
@@ -63,9 +66,11 @@ class LocationService : Service() {
             .onEach { location ->
                 val lat = location.latitude.toString()
                 val lon = location.longitude.toString()
+                val batteryLevel = getBatteryLevel().toString()
 
 
-                Log.d("LocationService", "Lat: $lat, Lon: $lon, repId: $repId")
+                //Log.d("LocationService", "Lat: $lat, Lon: $lon, repId: $repId")
+                Log.d("LocationService", "Lat: $lat, Lon: $lon, repId: $repId, Battery: $batteryLevel")
 
                 // Send periodic location update
                 val url = "http://mudithappl-001-site1.dtempurl.com/php-login-app/public/location_handler.php"
@@ -84,6 +89,7 @@ class LocationService : Service() {
                             "rep_id" to repId,
                             "latitude" to lat,
                             "longitude" to lon,
+                            "battery_level" to batteryLevel,
                             "action" to "location_update"
                         )
                     }
@@ -105,6 +111,16 @@ class LocationService : Service() {
             .launchIn(serviceScope)
 
         startForeground(1, notification.build())
+    }
+
+    private fun getBatteryLevel(): Int {
+        val batteryStatus: Intent? = registerReceiver(
+            null,
+            IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        )
+        val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        return ((level / scale.toFloat()) * 100).toInt()
     }
 
     private fun stop() {
