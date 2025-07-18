@@ -14,19 +14,23 @@ import com.android.volley.Response
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.gms.location.LocationServices
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 class LocationService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var locationClient: LocationClient
     private var repId: String = "unknown"
+
+    private var trackingJob: Job? = null
+    private var intervalCheckerJob: Job? = null
+    private var currentIntervalMillis: Long = 5 * 60 * 1000L // default 5 minutes
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -50,7 +54,7 @@ class LocationService : Service() {
     }
 
     private fun start() {
-        val notification = NotificationCompat.Builder(this, "location")
+        val notificationBuilder = NotificationCompat.Builder(this, "location")
             .setContentTitle("Tracking location...")
             .setContentText("Location: null")
             .setSmallIcon(R.drawable.ic_launcher_background)
@@ -58,21 +62,47 @@ class LocationService : Service() {
 
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        //val batteryLevel = getBatteryLevel().toString()
 
-        locationClient
-            .getLocationUpdates(5 * 60 * 1000L) // every 5 mins
+        startForeground(1, notificationBuilder.build())
+
+        // Initial fetch and start tracking
+        fetchTrackingInterval { intervalMillis ->
+            currentIntervalMillis = intervalMillis
+            startTracking(currentIntervalMillis, notificationManager, notificationBuilder)
+        }
+
+        // Periodically check if interval has changed in DB
+        intervalCheckerJob = serviceScope.launch {
+            while (true) {
+                delay(5 * 60 * 1000L) // check every 5 minutes
+                fetchTrackingInterval { newIntervalMillis ->
+                    if (newIntervalMillis != currentIntervalMillis) {
+                        Log.d("LocationService", "Interval changed: $currentIntervalMillis -> $newIntervalMillis")
+                        currentIntervalMillis = newIntervalMillis
+                        startTracking(currentIntervalMillis, notificationManager, notificationBuilder)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startTracking(
+        intervalMillis: Long,
+        notificationManager: NotificationManager,
+        notificationBuilder: NotificationCompat.Builder
+    ) {
+        trackingJob?.cancel()
+
+        trackingJob = locationClient
+            .getLocationUpdates(intervalMillis)
             .catch { e -> e.printStackTrace() }
             .onEach { location ->
                 val lat = location.latitude.toString()
                 val lon = location.longitude.toString()
                 val batteryLevel = getBatteryLevel().toString()
 
-
-                //Log.d("LocationService", "Lat: $lat, Lon: $lon, repId: $repId")
                 Log.d("LocationService", "Lat: $lat, Lon: $lon, repId: $repId, Battery: $batteryLevel")
 
-                // Send periodic location update
                 val url = "http://mudithappl-001-site1.dtempurl.com/php-login-app/public/location_handler.php"
                 val requestQueue = Volley.newRequestQueue(applicationContext)
 
@@ -96,21 +126,38 @@ class LocationService : Service() {
                 }
 
                 stringRequest.retryPolicy = DefaultRetryPolicy(
-                    10000, // timeout in ms (10 seconds)
-                    3,     // max retry count
-                    1.0f   // backoff multiplier
+                    10000,
+                    3,
+                    1.0f
                 )
-
 
                 requestQueue.add(stringRequest)
 
-                // Update ongoing notification
-                val updatedNotification = notification.setContentText("Location: ($lat, $lon)")
+                val updatedNotification = notificationBuilder.setContentText("Location: ($lat, $lon)")
                 notificationManager.notify(1, updatedNotification.build())
             }
             .launchIn(serviceScope)
+    }
 
-        startForeground(1, notification.build())
+    private fun fetchTrackingInterval(onResult: (Long) -> Unit) {
+        Thread {
+            try {
+                val url = URL("http://mudithappl-001-site1.dtempurl.com/php-login-app/public/get_tracking_interval.php")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(response)
+                val intervalMinutes = json.getInt("tracking_interval_min")
+
+                onResult(intervalMinutes * 60 * 1000L) // convert to ms
+            } catch (e: Exception) {
+                Log.e("IntervalFetch", "Error: ${e.message}")
+                onResult(5 * 60 * 1000L) // fallback
+            }
+        }.start()
     }
 
     private fun getBatteryLevel(): Int {
@@ -131,6 +178,8 @@ class LocationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
+        trackingJob?.cancel()
+        intervalCheckerJob?.cancel()
     }
 
     companion object {
