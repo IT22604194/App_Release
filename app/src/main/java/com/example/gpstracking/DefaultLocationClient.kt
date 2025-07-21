@@ -1,4 +1,4 @@
-package com.example.yourapp.location
+package com.example.gpstracking
 
 import android.annotation.SuppressLint
 import android.content.Context
