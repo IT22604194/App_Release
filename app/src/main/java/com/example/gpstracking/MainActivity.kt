@@ -73,6 +73,11 @@ class MainActivity : ComponentActivity() {
                 var clockInInProgress by remember { mutableStateOf(false) }
                 val clockInTimePref = remember { mutableStateOf(sharedPref.getString("clock_in_time", null)) }
 
+                LaunchedEffect(Unit) {
+                    val storedClockIn = sharedPref.getString("clock_in_time", null)
+                    clockInTimePref.value = storedClockIn
+                }
+
                 Scaffold(
                     topBar = {
                         TopAppBar(
@@ -213,12 +218,20 @@ class MainActivity : ComponentActivity() {
 
                             Spacer(modifier = Modifier.height(32.dp))
                             //Logout Button
+                            val isClockedIn = clockInTimePref.value != null
+
                             Button(
                                 onClick = {
-                                    sharedPref.edit().clear().apply()
-                                    startActivity(Intent(this@MainActivity, LoginActivity::class.java))
-                                    finish()
+                                    if (!isClockedIn) {
+                                        sharedPref.edit().clear().apply()
+                                        startActivity(Intent(this@MainActivity, LoginActivity::class.java))
+                                        finish()
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "Please clock out before logging out", Toast.LENGTH_SHORT).show()
+                                    }
                                 },
+                                enabled = !isClockedIn,
+
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(45.dp),
