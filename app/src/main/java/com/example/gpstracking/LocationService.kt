@@ -74,7 +74,7 @@ class LocationService : Service() {
         // Periodically check if interval has changed in DB
         intervalCheckerJob = serviceScope.launch {
             while (true) {
-                delay(5 * 60 * 1000L) // check every 5 minutes
+                delay(1 * 60 * 1000L) // check every 5 minutes
                 fetchTrackingInterval { newIntervalMillis ->
                     if (newIntervalMillis != currentIntervalMillis) {
                         Log.d("LocationService", "Interval changed: $currentIntervalMillis -> $newIntervalMillis")
@@ -92,6 +92,9 @@ class LocationService : Service() {
         notificationBuilder: NotificationCompat.Builder
     ) {
         trackingJob?.cancel()
+        trackingJob = null // force reset
+
+        Log.d("LocationService", "Starting tracking with interval: $intervalMillis ms")
 
         trackingJob = locationClient
             .getLocationUpdates(intervalMillis)
@@ -125,12 +128,7 @@ class LocationService : Service() {
                     }
                 }
 
-                stringRequest.retryPolicy = DefaultRetryPolicy(
-                    10000,
-                    3,
-                    1.0f
-                )
-
+                stringRequest.retryPolicy = DefaultRetryPolicy(10000, 3, 1.0f)
                 requestQueue.add(stringRequest)
 
                 val updatedNotification = notificationBuilder.setContentText("Location: ($lat, $lon)")
@@ -139,10 +137,11 @@ class LocationService : Service() {
             .launchIn(serviceScope)
     }
 
+
     private fun fetchTrackingInterval(onResult: (Long) -> Unit) {
         Thread {
             try {
-                val url = URL("http://mudithappl-001-site1.dtempurl.com/php-login-app/public/get_tracking_interval.php")
+                val url = URL("http://mudithappl-001-site1.dtempurl.com/php-login-app/public/get_tracking_interval.php?t=${System.currentTimeMillis()}")
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 5000

@@ -39,11 +39,12 @@ class DefaultLocationClient (
            val request = LocationRequest.Builder(
                 Priority.PRIORITY_HIGH_ACCURACY,
 
-               5 * 60 * 1000L // 5 minutes in milliseconds
+               //5 * 60 * 1000L // 5 minutes in milliseconds
+               interval
 
             ).apply {
-                setMinUpdateIntervalMillis(5 * 60 * 1000L)// Minimum update every 5 min
-                setMaxUpdateDelayMillis(6 * 60 * 1000L) // Optional buffer
+                setMinUpdateIntervalMillis(interval)// Minimum update every 5 min
+                setMaxUpdateDelayMillis(interval * 60 * 1000L) // Optional buffer
             }.build()
 
 
