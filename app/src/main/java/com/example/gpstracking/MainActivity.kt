@@ -69,13 +69,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             GPSTrackingTheme {
-                var isTracking by remember { mutableStateOf(false) }
-                var clockInInProgress by remember { mutableStateOf(false) }
+                var isTracking by remember { mutableStateOf(sharedPref.getBoolean("is_tracking", false)) }
                 val clockInTimePref = remember { mutableStateOf(sharedPref.getString("clock_in_time", null)) }
+                var clockInInProgress by remember { mutableStateOf(clockInTimePref.value != null) }
 
                 LaunchedEffect(Unit) {
                     val storedClockIn = sharedPref.getString("clock_in_time", null)
                     clockInTimePref.value = storedClockIn
+                    if (clockInInProgress && !isTracking) {
+                        startTracking(repId)
+                        isTracking = true
+                        sharedPref.edit().putBoolean("is_tracking", true).apply()
+                    }
                 }
 
                 Scaffold(
@@ -265,6 +270,18 @@ class MainActivity : ComponentActivity() {
             putExtra("rep_id", repId)
             startService(this)
         }
+        //Save tracking state
+        val masterKey = MasterKey.Builder(applicationContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        val sharedPref = EncryptedSharedPreferences.create(
+            applicationContext,
+            "UserSession",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+        sharedPref.edit().putBoolean("is_tracking", true).apply()
     }
 
     private fun stopTracking(repId: String) {
@@ -273,6 +290,18 @@ class MainActivity : ComponentActivity() {
             putExtra("rep_id", repId)
             startService(this)
         }
+        //Save tracking state
+        val masterKey = MasterKey.Builder(applicationContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        val sharedPref = EncryptedSharedPreferences.create(
+            applicationContext,
+            "UserSession",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+        sharedPref.edit().putBoolean("is_tracking", false).apply()
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
             ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
