@@ -3,12 +3,13 @@
 A simple Android mobile application to track and display the user’s real-time location using GPS. The app includes a login and registration system for secure access and is built using **Kotlin** and **Android Studio**.
 
 ## Features
-
--  User Login and Registration
--  Real-time Location Tracking using GPS
--  Display current location on map or text
--  Network security configuration
--  Clean and user-friendly interface
+-  User Login and Registration  
+-  Real-time Location Tracking using GPS  
+-  Display Location Updates on Map with Order Numbers  
+-  Show User's Battery Level to the Admin Dashboard  
+-  Admin Can Control GPS Update Interval via Database  
+-  Network Security Configuration  
+-  Clean and User-Friendly Interface 
 
 ## Technologies Used
 
